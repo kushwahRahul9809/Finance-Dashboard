@@ -2,7 +2,8 @@
 
 A small personal finance dashboard. Upload a CSV exported from your bank and get instant totals, a monthly income vs. spending chart, a category breakdown, and a transaction list you can recategorize. Data is stored locally in SQLite, so nothing leaves your machine.
 
-![Finance Dashboard](screenshots/dashboard.png)
+<img width="2880" height="1620" alt="dashboard" src="https://github.com/user-attachments/assets/c263c2f1-0526-40f9-b311-35f95398e880" />
+
 
 *Screenshot shows the included `sample_transactions.csv` loaded.*
 
@@ -31,8 +32,7 @@ A small personal finance dashboard. Upload a CSV exported from your bank and get
 ├── requirement.txt           # Python dependencies
 ├── sample_transactions.csv   # Example data to try the app
 ├── finance.db                # SQLite database (created automatically)
-└── screenshots/
-    └── dashboard.png
+
 ```
 
 ## Getting started
