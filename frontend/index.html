@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Finance Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg1: #EEF2FF;
+    --bg2: #FDF2F8;
+    --panel: #FFFFFF;
+    --ink: #1E2440;
+    --muted: #6B7390;
+    --line: #E3E6F3;
+    --violet: #6C5CE7;
+    --cyan: #00B8D9;
+    --green: #00B67A;
+    --amber: #FFB020;
+    --pink: #FF5C7A;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0; color: var(--ink);
+    font-family: "Schibsted Grotesk", system-ui, sans-serif;
+    font-variant-numeric: tabular-nums; line-height: 1.4;
+    background: linear-gradient(135deg, var(--bg1), var(--bg2));
+  }
+  .app {
+    height: 100vh; height: 100dvh; width: 100vw; padding: 14px 20px 16px;
+    display: grid; grid-template-rows: auto auto minmax(0, 1fr); gap: 14px;
+  }
+
+  /* Header: title centered, actions on the right */
+  header { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 12px; }
+  h1 {
+    grid-column: 2; margin: 0; text-align: center; font-size: clamp(1.6rem, 3vw, 2.4rem);
+    font-weight: 800; letter-spacing: -0.02em;
+    background: linear-gradient(90deg, var(--violet), var(--cyan), var(--green), var(--amber), var(--pink));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .actions { grid-column: 3; justify-self: end; display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+  button, select {
+    font: inherit; color: var(--ink); background: var(--panel);
+    border: 1px solid var(--line); border-radius: 8px; padding: 8px 14px; cursor: pointer;
+  }
+  button.primary { color: #fff; border: 0; background: linear-gradient(90deg, var(--violet), var(--cyan)); font-weight: 700; }
+  button:focus-visible, select:focus-visible { outline: 2px solid var(--violet); outline-offset: 2px; }
+  #status { grid-column: 1; grid-row: 1; font-size: .85rem; color: var(--muted); max-width: 32ch; }
+  #status.error { color: #D6334F; }
+
+  /* KPI cards */
+  .kpis { grid-row: 2; display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+  .kpi { border-radius: 14px; padding: 12px 16px; color: #fff; box-shadow: 0 6px 18px rgba(30, 36, 64, .12); }
+  .kpi .label { font-size: .85rem; opacity: .9; }
+  .kpi .num { font-size: clamp(1.3rem, 2.2vw, 1.9rem); font-weight: 800; }
+  .kpi.income { background: linear-gradient(135deg, #00B67A, #12D8A0); }
+  .kpi.spent { background: linear-gradient(135deg, #FF5C7A, #FF8A5C); }
+  .kpi.net { background: linear-gradient(135deg, #6C5CE7, #8E7BFF); }
+  .kpi.rate { background: linear-gradient(135deg, #FFB020, #FFD060); color: #3A2A00; }
+  .kpi .bar { height: 6px; border-radius: 3px; background: rgba(255, 255, 255, .35); margin-top: 6px; overflow: hidden; }
+  .kpi .bar i { display: block; height: 100%; background: #fff; transition: width .4s ease; }
+
+  /* Main area: two charts stacked on the left, table on the right */
+  .main { grid-row: 3; display: grid; grid-template-columns: 1.1fr 1fr; gap: 14px; min-height: 0; }
+  .charts { display: grid; grid-template-rows: 1fr 1fr; gap: 14px; min-height: 0; }
+  .panel {
+    background: var(--panel); border-radius: 14px; padding: 12px 16px; min-width: 0; min-height: 0;
+    display: flex; flex-direction: column; box-shadow: 0 6px 18px rgba(30, 36, 64, .08);
+  }
+  .panel h2 { font-size: 1rem; margin: 0 0 6px; font-weight: 700; }
+  .chart-box { position: relative; flex: 1; min-height: 0; }
+
+  .table-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 6px; }
+  .table-head select { padding: 4px 10px; }
+  .table-wrap { flex: 1; min-height: 0; overflow: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: .9rem; }
+  th { position: sticky; top: 0; background: var(--panel); text-align: left; color: var(--muted); font-weight: 500; font-size: .8rem; padding: 6px 8px; border-bottom: 2px solid var(--line); }
+  td { padding: 5px 8px; border-bottom: 1px solid var(--line); }
+  th.amt, td.amt { text-align: right; white-space: nowrap; }
+  td.amt { color: var(--pink); font-weight: 500; }
+  td.amt.in { color: var(--green); }
+  .cat { display: flex; align-items: center; gap: 6px; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; flex: none; }
+  td select { padding: 2px 6px; font-size: .85rem; border-radius: 6px; }
+
+  .empty { grid-row: 2 / span 2; display: grid; place-items: center; text-align: center; color: var(--muted); }
+  .empty h2 { color: var(--ink); font-size: 1.3rem; margin: 0 0 6px; }
+  [hidden] { display: none !important; }
+
+  /* Desktop: the dashboard fills the screen and the page itself never scrolls */
+  @media (min-width: 901px) { html, body { overflow: hidden; } }
+
+  /* Small screens: let the page scroll instead of squeezing */
+  @media (max-width: 900px) {
+    .app { height: auto; min-height: 100vh; grid-template-rows: auto; }
+    header { grid-template-columns: 1fr; justify-items: center; }
+    h1, .actions, #status { grid-column: 1; grid-row: auto; justify-self: center; text-align: center; }
+    .kpis { grid-template-columns: 1fr 1fr; }
+    .main { grid-template-columns: 1fr; }
+    .charts { grid-template-rows: auto; }
+    .chart-box { height: 260px; flex: none; }
+    .table-wrap { max-height: 420px; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <p id="status" role="status"></p>
+    <h1>Finance Dashboard</h1>
+    <div class="actions">
+      <input type="file" id="file" accept=".csv" hidden>
+      <button class="primary" id="uploadBtn">Upload bank CSV</button>
+      <button id="fsBtn">Full screen</button>
+      <button id="clearBtn">Clear all data</button>
+    </div>
+  </header>
+
+  <section class="kpis" id="kpis" hidden>
+    <div class="kpi income"><div class="label">Income</div><div class="num" id="income">0</div></div>
+    <div class="kpi spent">
+      <div class="label">Spent</div><div class="num" id="expenses">0</div>
+      <div class="bar"><i id="spentBar" style="width:0"></i></div>
+    </div>
+    <div class="kpi net"><div class="label" id="netLabel">Left over</div><div class="num" id="net">0</div></div>
+    <div class="kpi rate"><div class="label">Savings rate</div><div class="num" id="rate">0%</div></div>
+  </section>
+
+  <section id="empty" class="empty" hidden>
+    <div>
+      <h2>No transactions yet</h2>
+      <p>Upload a CSV exported from your bank. It needs a date, a description, and an amount (or debit and credit columns).</p>
+      <button class="primary" id="emptyUpload" style="margin-top:8px">Upload bank CSV</button>
+    </div>
+  </section>
+
+  <div class="main" id="dash" hidden>
+    <div class="charts">
+      <section class="panel">
+        <h2>Income and spending by month</h2>
+        <div class="chart-box"><canvas id="monthly"></canvas></div>
+      </section>
+      <section class="panel">
+        <h2>Where the money went</h2>
+        <div class="chart-box"><canvas id="cats"></canvas></div>
+      </section>
+    </div>
+
+    <section class="panel">
+      <div class="table-head">
+        <h2 style="margin:0">Transactions</h2>
+        <select id="filter" aria-label="Filter by category"></select>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Date</th><th>Description</th><th>Category</th><th class="amt">Amount</th></tr></thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const money = n => n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const esc = s => s.replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const COLORS = {
+  Income: "#00B67A", Housing: "#6C5CE7", Groceries: "#FFB020", Dining: "#FF8A5C", Transport: "#00B8D9",
+  Subscriptions: "#E056FD", Utilities: "#4D7CFE", Health: "#FF5C7A", Shopping: "#12D8A0", Other: "#9AA3BF",
+};
+const colorOf = c => COLORS[c] || "#9AA3BF";
+let categories = [], charts = {};
+
+Chart.defaults.color = "#6B7390";
+Chart.defaults.font.family = '"Schibsted Grotesk", system-ui, sans-serif';
+
+function setStatus(msg, isError = false) {
+  const el = $("status");
+  el.textContent = msg;
+  el.className = isError ? "error" : "";
+}
+
+async function api(path, options) {
+  const res = await fetch(path, options);
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.detail || "Request failed.");
+  return data;
+}
+
+function drawChart(key, canvasId, config) {
+  if (charts[key]) charts[key].destroy();
+  charts[key] = new Chart($(canvasId), config);
+}
+
+function filterQuery() {
+  const v = $("filter").value;
+  return v && v !== "All categories" ? "?category=" + encodeURIComponent(v) : "";
+}
+
+async function refresh() {
+  const [summary, txs] = await Promise.all([api("/api/summary"), api("/api/transactions" + filterQuery())]);
+  const hasData = summary.income > 0 || summary.expenses > 0;
+  $("empty").hidden = hasData;
+  $("dash").hidden = !hasData;
+  $("kpis").hidden = !hasData;
+  if (!hasData) return;
+
+  const spentPct = summary.income > 0 ? Math.min(100, (summary.expenses / summary.income) * 100) : 100;
+  $("spentBar").style.width = spentPct + "%";
+  $("income").textContent = money(summary.income);
+  $("expenses").textContent = money(summary.expenses);
+  $("netLabel").textContent = summary.net >= 0 ? "Left over" : "Overspent by";
+  $("net").textContent = money(Math.abs(summary.net));
+  $("rate").textContent = summary.income > 0 ? Math.round((summary.net / summary.income) * 100) + "%" : "0%";
+
+  const common = { responsive: true, maintainAspectRatio: false };
+
+  drawChart("monthly", "monthly", {
+    type: "bar",
+    data: {
+      labels: summary.monthly.map(m => m.month),
+      datasets: [
+        { label: "Income", data: summary.monthly.map(m => m.income), backgroundColor: "#00B67A", borderRadius: 6 },
+        { label: "Spending", data: summary.monthly.map(m => m.expenses), backgroundColor: "#FF5C7A", borderRadius: 6 },
+      ],
+    },
+    options: { ...common, plugins: { legend: { position: "bottom", labels: { boxWidth: 12 } } } },
+  });
+
+  drawChart("cats", "cats", {
+    type: "doughnut",
+    data: {
+      labels: summary.by_category.map(c => c.category),
+      datasets: [{
+        data: summary.by_category.map(c => c.total),
+        backgroundColor: summary.by_category.map(c => colorOf(c.category)),
+        borderWidth: 2, borderColor: "#fff",
+      }],
+    },
+    options: {
+      ...common, cutout: "60%",
+      plugins: {
+        legend: { position: "right", labels: { boxWidth: 12 } },
+        tooltip: { callbacks: { label: ctx => ` ${ctx.label}: ${money(ctx.parsed)}` } },
+      },
+    },
+  });
+
+  $("rows").innerHTML = txs.map(t => `
+    <tr>
+      <td>${t.date}</td>
+      <td>${esc(t.description)}</td>
+      <td><div class="cat"><span class="dot" style="background:${colorOf(t.category)}"></span>
+        <select data-id="${t.id}" aria-label="Category for ${esc(t.description)}">
+          ${categories.map(c => `<option ${c === t.category ? "selected" : ""}>${c}</option>`).join("")}
+        </select></div></td>
+      <td class="amt ${t.amount > 0 ? "in" : ""}">${money(t.amount)}</td>
+    </tr>`).join("");
+}
+
+$("uploadBtn").onclick = () => $("file").click();
+$("emptyUpload").onclick = () => $("file").click();
+
+$("fsBtn").onclick = () => {
+  if (document.fullscreenElement) document.exitFullscreen();
+  else document.documentElement.requestFullscreen().catch(() => setStatus("Your browser blocked full screen.", true));
+};
+document.addEventListener("fullscreenchange", () => {
+  $("fsBtn").textContent = document.fullscreenElement ? "Exit full screen" : "Full screen";
+});
+
+$("file").onchange = async e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const body = new FormData();
+  body.append("file", file);
+  try {
+    const r = await api("/api/upload", { method: "POST", body });
+    let msg = `Added ${r.added} transactions` + (r.duplicates_skipped ? `, skipped ${r.duplicates_skipped} duplicates.` : ".");
+    if (r.errors.length) msg += ` ${r.errors.length} rows could not be read (first: ${r.errors[0]})`;
+    setStatus(msg, r.errors.length > 0);
+    await refresh();
+  } catch (err) {
+    setStatus(err.message, true);
+  }
+  e.target.value = "";
+};
+
+$("clearBtn").onclick = async () => {
+  if (!confirm("Delete all transactions? This cannot be undone.")) return;
+  await api("/api/transactions", { method: "DELETE" });
+  setStatus("All transactions deleted.");
+  await refresh();
+};
+
+$("filter").onchange = refresh;
+
+$("rows").onchange = async e => {
+  if (!e.target.matches("select")) return;
+  try {
+    await api("/api/transactions/" + e.target.dataset.id, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ category: e.target.value }),
+    });
+    setStatus("Category saved.");
+    await refresh();
+  } catch (err) {
+    setStatus(err.message, true);
+  }
+};
+
+(async () => {
+  categories = await api("/api/categories");
+  $("filter").innerHTML = ["All categories", ...categories].map(c => `<option>${c}</option>`).join("");
+  await refresh();
+})().catch(err => setStatus(err.message, true));
+</script>
+</body>
+</html>
